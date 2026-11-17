@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Project Evaluation Portal</title>
+<style>
+:root{--bg:#f5f6fa;--card:#fff;--text:#1b1f2a;--muted:#5b6475;--line:#dde1ea;--acc:#3556d8;--on:#fff;--ok:#1a7f4b;--bad:#c2331f;color-scheme:light dark}
+@media(prefers-color-scheme:dark){:root{--bg:#12141b;--card:#1b1f2a;--text:#eceef4;--muted:#a1a9ba;--line:#2e3445;--acc:#7c96ff;--on:#0f1320;--ok:#4cc38a;--bad:#ff8a78}}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font:17px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+header{max-width:960px;margin:auto;padding:20px 16px 8px;display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:space-between}
+h1{margin:0;font-size:1.4rem}nav{display:flex;gap:6px}nav a{padding:8px 14px;border:1px solid var(--line);border-radius:999px;color:var(--text);text-decoration:none}nav a.on{background:var(--acc);color:var(--on);border-color:var(--acc)}
+main{max-width:960px;margin:auto;padding:8px 16px 48px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:18px;margin-bottom:14px}
+label{display:block;font-weight:600;margin:14px 0 4px;font-size:.95rem}.hint,.note,.cnt{color:var(--muted);font-weight:400;font-size:.88rem}.cnt.ok{color:var(--ok)}
+input,select,textarea{width:100%;padding:10px;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--text);font:inherit}textarea{min-height:90px;resize:vertical}
+input[type=range]{padding:0}.btn{display:inline-block;background:var(--acc);color:var(--on);border:0;padding:11px 20px;border-radius:8px;font:inherit;font-weight:600;cursor:pointer;text-decoration:none}.btn.alt{background:none;color:var(--text);border:1px solid var(--line)}.btn:disabled{opacity:.5}
+.nav2{display:flex;justify-content:space-between;gap:8px;margin-top:18px;flex-wrap:wrap}.msg{margin-top:10px;font-weight:600;color:var(--ok)}.msg.bad{color:var(--bad)}
+.bar{height:8px;background:var(--line);border-radius:9px;overflow:hidden}.bar i{display:block;height:100%;background:var(--acc);transition:width .3s}
+.crit{padding:8px 0;border-top:1px solid var(--line)}.pill{display:inline-block;padding:1px 10px;border:1px solid var(--line);border-radius:999px;font-size:.85rem}
+.ring{--p:0;width:110px;height:110px;border-radius:50%;margin:12px 0;display:grid;place-items:center;background:conic-gradient(var(--acc) calc(var(--p)*1%),var(--line) 0)}
+.ring b{width:84px;height:84px;border-radius:50%;background:var(--card);display:grid;place-items:center;font-size:1.3rem}
+.row{display:flex;gap:10px;flex-wrap:wrap;margin:10px 0}
+</style>
+</head>
+<body>
+<header><h1>Project Evaluation Portal</h1><nav><a href="#submit">Submit</a><a href="#evaluate">Evaluator</a></nav></header>
+<main id="app"></main>
+<script>
+/* ===== SETTINGS ===== */
+const API="PASTE_YOUR_APPS_SCRIPT_WEB_APP_URL_HERE";
+const TEMPLATE_URL="Project_Presentation_Template.pptx"; // or paste a Google Drive / Slides template link
+/* Edit this list to match your Google Form. step 0-3. */
+const FIELDS=[
+{id:"name",label:"Name",type:"text",step:0,req:1},
+{id:"roll",label:"Roll No",type:"text",step:0,req:1},
+{id:"email",label:"Email",hint:"added: feedback is sent here",type:"email",step:0,req:1},
+{id:"ptype",label:"Project Type",type:"radio",step:0,req:1,options:["BTP","Additional Project","Honors"]},
+{id:"evalround",label:"Evaluation",type:"radio",step:0,options:["First","Second","Third","NA"]},
+{id:"code",label:"Class access code",hint:"given by your instructor, leave blank if none",type:"text",step:0},
+{id:"title",label:"Name of The Project",type:"text",step:1,req:1},
+{id:"objectives",label:"Overall Objectives of The Project",type:"textarea",step:1,req:1,min:120},
+{id:"achieved",label:"Objectives Achieved After The Last Evaluation",hint:"write NA if this is your first evaluation",type:"textarea",step:1,req:1,min:60,metric:1},
+{id:"progress",label:"Overall completion (%)",hint:"added: your own estimate",type:"range",step:1},
+{id:"mentor",label:"Name of the Previous Mentor",type:"radio",step:2,req:1,options:["Dr Kamalakanta Sethi","Dr Neha Agarwal","Dr Lokendra C","Dr Abhishek H","Dr Arun P V","Not Applicable"]},
+{id:"frequency",label:"How Frequently Do You Update the Status of Your Work?",type:"radio",step:2,req:1,options:["Weekly","Bi-weekly","Monthly","Only before the reviews/evaluation","Never"]},
+{id:"results",label:"Results and testing",hint:"added: metrics, accuracy, demo outcomes",type:"textarea",step:2,min:80,metric:1},
+{id:"challenges",label:"Challenges and help needed from your mentor",hint:"added",type:"textarea",step:2,min:60},
+{id:"future",label:"Future Work",type:"textarea",step:2,req:1,min:60},
+{id:"repo",label:"Source code link (optional)",hint:"added",type:"url",step:2},
+{id:"video",label:"Presentation Video + Results link",hint:"Drive, YouTube or OneDrive link",type:"url",step:3,req:1},
+{id:"pres",label:"Presentation file link (PPT or PDF)",hint:"Drive or OneDrive link",type:"url",step:3,req:1}
+];
+const CRIT=[{k:"problem",n:"Problem and relevance",w:20},{k:"tech",n:"Technical depth",w:25},{k:"novel",n:"Innovation",w:20},{k:"impl",n:"Implementation and results",w:20},{k:"comm",n:"Presentation and video",w:15}];
+const SEQN=["Introduction: problem statement and motivation","Literature Review / Related Work","Quick Recap: work implemented in your previous evaluation","Methodology / Proposed Approach","Implementation Details","Results and Analysis","Conclusion and Future Work","References"];
+const STEPS=["About you","Project","Progress","Links and self-review"];
+/* ==================== */
+
+const $=s=>document.querySelector(s);
+const esc=s=>String(s==null?"":s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const state={step:0,vals:{},self:{},seq:[]};
+try{Object.assign(state,JSON.parse(localStorage.getItem("draft")||"{}"),{seq:[]})}catch(e){}
+const draft=()=>{try{localStorage.setItem("draft",JSON.stringify({step:state.step,vals:state.vals,self:state.self}))}catch(e){}};
+const total=s=>Math.round(CRIT.reduce((t,c)=>t+(+s[c.k]||0)/5*c.w,0));
+async function api(body){if(API.startsWith("PASTE"))throw new Error("Backend URL not set in index.html");
+ let err;for(let i=0;i<4;i++){try{const r=await fetch(API,{method:"POST",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify(body)});return await r.json()}catch(e){err=e;await new Promise(z=>setTimeout(z,1500*(i+1)+Math.random()*2000))}}throw err}
+function route(){const h=location.hash.slice(1)||"submit";
+ document.querySelectorAll("nav a").forEach(a=>a.classList.toggle("on",a.getAttribute("href")==="#"+h));
+ (h==="evaluate"?viewEval:viewSubmit)()}
+addEventListener("hashchange",route);
+
+/* ---------- submit wizard ---------- */
+function fieldHtml(f){const v=state.vals[f.id]||"";let i;
+ if(f.type==="textarea")i=`<textarea data-f="${f.id}">${esc(v)}</textarea><div class="cnt" id="c_${f.id}"></div>`;
+ else if(f.type==="radio")i=`<div>${f.options.map(o=>`<label style="font-weight:400;margin:6px 0"><input type="radio" style="width:auto" name="${f.id}" data-f="${f.id}" value="${esc(o)}"${o===v?" checked":""}> ${esc(o)}</label>`).join("")}</div>`;
+ else if(f.type==="range")i=`<input type="range" min="0" max="100" step="5" value="${v||0}" data-f="${f.id}"><div class="cnt" id="c_${f.id}"></div>`;
+ else i=`<input data-f="${f.id}" type="${f.type}" value="${esc(v)}"${f.type==="url"?' placeholder="https://"':""}>`;
+ return `<label>${f.label}${f.req?" *":""} ${f.hint?`<span class="hint">${f.hint}</span>`:""}</label>${i}`}
+function lastStep(){return `<div class="card" style="background:var(--bg)"><b>Presentation template</b>
+<p class="note"><a href="${esc(TEMPLATE_URL)}" target="_blank" rel="noopener" download>Open the template</a>. Your slides and video must follow this order. Tick each section once it is in your video:</p>
+${SEQN.map((t,i)=>`<label style="font-weight:400;margin:4px 0"><input type="checkbox" style="width:auto" data-q="${i}"${state.seq[i]?" checked":""}> ${i+1}. ${t}</label>`).join("")}</div>
+${FIELDS.filter(f=>f.step===3).map(fieldHtml).join("")}
+<label><input type="checkbox" id="share" style="width:auto"> I have set both links to "Anyone with the link can view" *</label>
+<h3>Rate yourself</h3><p class="note">Be honest. Your evaluator compares this with their own scores.</p>
+${CRIT.map(c=>`<div class="crit"><b>${c.n}</b> <span class="pill" id="v_${c.k}">${state.self[c.k]==null?3:state.self[c.k]}/5</span><input type="range" min="0" max="5" value="${state.self[c.k]==null?3:state.self[c.k]}" data-s="${c.k}"></div>`).join("")}
+<div class="ring" id="ring"><b></b></div>`}
+function viewSubmit(){const s=state.step;
+ $("#app").innerHTML=`<div class="bar"><i style="width:${(s+1)/STEPS.length*100}%"></i></div>
+ <p class="note">Step ${s+1} of ${STEPS.length}: ${STEPS[s]}. Your draft saves automatically.</p>
+ <div class="card">${s<3?FIELDS.filter(f=>f.step===s).map(fieldHtml).join(""):lastStep()}
+ <div class="nav2">${s?'<button class="btn alt" id="back">Back</button>':"<span></span>"}<button class="btn" id="next">${s===3?"Submit project":"Next"}</button></div><div id="msg" class="msg"></div></div>`;
+ document.querySelectorAll("[data-f]").forEach(el=>{const f=FIELDS.find(x=>x.id===el.dataset.f);
+  if(el.type==="range"&&!state.vals[f.id])state.vals[f.id]=el.value;
+  el.oninput=()=>{state.vals[f.id]=el.value;draft();tip(f,el)};tip(f,el)});
+ if(s===3){document.querySelectorAll("[data-q]").forEach(c=>c.onchange=()=>{state.seq[c.dataset.q]=c.checked});
+  document.querySelectorAll("[data-s]").forEach(r=>{state.self[r.dataset.s]=+r.value;r.oninput=()=>{state.self[r.dataset.s]=+r.value;$("#v_"+r.dataset.s).textContent=r.value+"/5";ring();draft()}});ring()}
+ $("#next").onclick=next;const b=$("#back");if(b)b.onclick=()=>{state.step--;viewSubmit()}}
+function tip(f,el){const c=$("#c_"+f.id);if(!c)return;if(f.type==="range"){c.textContent=el.value+"% complete";return}
+ const n=el.value.trim().length,m=f.min||0;let t=n+" characters";if(n<m)t+=" · add "+(m-n)+" more for a stronger answer";
+ if(f.metric&&n>20&&!/\d/.test(el.value))t+=" · tip: include a number or metric";c.textContent=t;c.className="cnt"+(n>=m?" ok":"")}
+function ring(){$("#ring").style.setProperty("--p",total(state.self));$("#ring b").textContent=total(state.self)}
+async function next(){const s=state.step,m=$("#msg");m.className="msg bad";
+ const bad=FIELDS.filter(f=>f.step===s&&f.req&&!(state.vals[f.id]||"").trim());
+ if(bad.length){m.textContent="Please fill: "+bad.map(f=>f.label).join(", ");return}
+ if(s===0&&!/^\S+@\S+\.\S+$/.test(state.vals.email||"")){m.textContent="Enter a valid email address.";return}
+ const bu=FIELDS.filter(f=>f.step===s&&f.type==="url"&&state.vals[f.id]&&!/^https:\/\/\S+$/i.test(state.vals[f.id]));
+ if(bu.length){m.textContent="Links must start with https://  ("+bu.map(f=>f.label).join(", ")+")";return}
+ if(s<3){state.step++;draft();viewSubmit();scrollTo(0,0);return}
+ if(SEQN.some((_,i)=>!state.seq[i])){m.textContent="Tick all 8 sections to confirm your video follows the required order.";return}
+ if(!$("#share").checked){m.textContent="Please confirm both links are viewable by anyone with the link.";return}
+ const btn=$("#next");btn.disabled=true;m.className="msg";m.textContent="Submitting…";
+ try{const labels={};FIELDS.forEach(f=>labels[f.id]=f.label);
+  const r=await api({action:"submit",answers:state.vals,labels:labels,self:state.self});if(!r.ok)throw new Error(r.error);
+  localStorage.removeItem("draft");state.vals={};state.self={};state.step=0;state.seq=[];
+  $("#app").innerHTML=`<div class="card"><h2>Submitted. Thank you!</h2><p>Your reference ID is <b>${esc(r.id)}</b>.</p><p>Your evaluator will review your video and presentation links and email you suggestions.</p></div>`}
+ catch(e){m.className="msg bad";m.textContent="Failed: "+e.message+". Your draft is kept, please try again.";btn.disabled=false}}
+
+/* ---------- evaluator ---------- */
+let items=[],sheetUrl="";
+const val=v=>v==null?"":v;
+function toItem(r){const d=r.data,a={},self={},sc={};
+ FIELDS.forEach(f=>a[f.id]=String(val(d[f.label])));CRIT.forEach(c=>{self[c.k]=d["Self: "+c.n];sc[c.k]=d["Eval: "+c.n]});
+ return{id:r.id,a:a,self:self,sc:sc,total:val(d["Eval total /100"]),cm:String(val(d["Evaluator comments"])),sg:String(val(d["Evaluator suggestions"]))}}
+function setItems(r){items=r.rows.map(toItem).reverse();sheetUrl=r.sheetUrl}
+const lbl=x=>x.a.title+" ("+x.a.name+")"+(x.total!==""?" · "+x.total+"/100":"");
+const link=v=>/^https:\/\//.test(v)?`<a href="${esc(v)}" target="_blank" rel="noopener">${esc(v)}</a>`:esc(v);
+async function viewEval(){const pin=sessionStorage.getItem("pin");
+ if(pin){try{const r=await api({action:"eval_list",pin});if(r.ok){setItems(r);evalUi();return}}catch(e){}sessionStorage.removeItem("pin")}
+ $("#app").innerHTML=`<div class="card"><h2>Evaluator sign-in</h2><label>PIN</label><input id="pin" type="password"><div class="nav2"><span></span><button class="btn" id="go">Open</button></div><div id="msg" class="msg bad"></div></div>`;
+ $("#go").onclick=async()=>{const p=$("#pin").value;try{const r=await api({action:"eval_list",pin:p});if(!r.ok)throw new Error(r.error);sessionStorage.setItem("pin",p);setItems(r);evalUi()}catch(e){$("#msg").textContent=e.message}}}
+function evalUi(){const done=items.filter(x=>x.total!=="").length;
+ $("#app").innerHTML=`<div class="card"><p><b>${items.length}</b> submitted · <b>${done}</b> evaluated</p><div class="row"><button class="btn" id="xl">Download Excel</button><a class="btn alt" href="${esc(sheetUrl)}" target="_blank" rel="noopener">Open Google Sheet</a></div><div id="top" class="msg"></div></div>
+ <div class="card"><label>Project</label><select id="pk">${items.map((x,i)=>`<option value="${i}">${esc(lbl(x))}</option>`).join("")}</select></div><div id="ev"></div>`;
+ $("#pk").onchange=show;show();
+ $("#xl").onclick=async()=>{const t=$("#top");t.className="msg";t.textContent="Preparing Excel…";
+  try{const r=await api({action:"xlsx",pin:sessionStorage.getItem("pin")});if(!r.ok)throw new Error(r.error);
+   const bin=atob(r.b64),u=new Uint8Array(bin.length);for(let i=0;i<bin.length;i++)u[i]=bin.charCodeAt(i);
+   const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([u],{type:"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"}));a.download=r.name;a.click();t.textContent="Downloaded."}
+  catch(e){t.className="msg bad";t.textContent=e.message+" (you can also open the Google Sheet and use File > Download > Excel)"}}}
+function show(){const i=$("#pk").value,x=items[i];if(!x){$("#ev").innerHTML="<div class='card'>No submissions yet.</div>";return}
+ $("#ev").innerHTML=`<div class="card"><h2>${esc(x.a.title)}</h2>
+ <div class="row">${x.a.video?`<a class="btn" href="${esc(x.a.video)}" target="_blank" rel="noopener">Open video</a>`:""}${x.a.pres?`<a class="btn alt" href="${esc(x.a.pres)}" target="_blank" rel="noopener">Open presentation</a>`:""}</div>
+ ${FIELDS.filter(f=>f.id!=="code"&&x.a[f.id]).map(f=>`<p><b>${f.label}</b><br>${link(x.a[f.id])}</p>`).join("")}</div>
+ <div class="card"><h3>Score (student self-score in brackets)</h3>${CRIT.map(c=>`<div class="crit"><b>${c.n}</b> <span class="pill" id="e_${c.k}">${+x.sc[c.k]||0}/5</span> <span class="note">(self ${x.self[c.k]===""||x.self[c.k]==null?"-":x.self[c.k]})</span><input type="range" min="0" max="5" value="${+x.sc[c.k]||0}" data-e="${c.k}"></div>`).join("")}
+ <div class="ring" id="ring"><b></b></div>
+ <label>Comments</label><textarea id="cm">${esc(x.cm)}</textarea>
+ <label>Suggestions for the team</label><textarea id="sg">${esc(x.sg)}</textarea>
+ <label><input type="checkbox" id="mail" style="width:auto" checked> Email this feedback to the student</label>
+ <div class="nav2"><span></span><button class="btn" id="sv">Save evaluation</button></div><div id="msg" class="msg"></div></div>`;
+ const cur=()=>{const s={};document.querySelectorAll("[data-e]").forEach(r=>s[r.dataset.e]=+r.value);return s};
+ const rg=()=>{$("#ring").style.setProperty("--p",total(cur()));$("#ring b").textContent=total(cur())};
+ document.querySelectorAll("[data-e]").forEach(r=>r.oninput=()=>{$("#e_"+r.dataset.e).textContent=r.value+"/5";rg()});rg();
+ $("#sv").onclick=async()=>{const m=$("#msg");m.className="msg";m.textContent="Saving…";
+  try{const s=cur(),r=await api({action:"eval_save",pin:sessionStorage.getItem("pin"),id:x.id,scores:s,comments:$("#cm").value,suggestions:$("#sg").value,email:$("#mail").checked});
+   if(!r.ok)throw new Error(r.error);Object.assign(x,{sc:s,total:total(s),cm:$("#cm").value,sg:$("#sg").value});$("#pk").options[i].textContent=lbl(x);m.textContent="Saved"+($("#mail").checked?" and emailed.":".")}
+  catch(e){m.className="msg bad";m.textContent=e.message}}}
+route();
+</script>
+</body>
+</html>
