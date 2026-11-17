@@ -29,14 +29,14 @@ input[type=range]{padding:0}.btn{display:inline-block;background:var(--acc);colo
 <script>
 /* ===== SETTINGS ===== */
 const API="https://script.google.com/macros/s/AKfycbwHdGE8Lv1EskFSwxcIvDvYMNqZBg79InrH_K1QHTH_CfYPHPFnmg-Fovl-PbbNVooyog/exec";
-const TEMPLATE_URL="https://docs.google.com/presentation/d/1RC01ViRinNsurmaxTN7d9TLCnce8q1gG/edit?usp=sharing&ouid=117328419892074110368&rtpof=true&sd=true"; // or paste a Google Drive / Slides template link
+const TEMPLATE_URL="https://docs.google.com/presentation/d/1RC01ViRinNsurmaxTN7d9TLCnce8q1gG/edit?usp=sharing"; // must be shared as "Anyone with the link can view"
 /* Edit this list to match your Google Form. step 0-3. */
 const FIELDS=[
 {id:"name",label:"Name",type:"text",step:0,req:1},
 {id:"roll",label:"Roll No",type:"text",step:0,req:1},
 {id:"email",label:"Email",hint:"added: feedback is sent here",type:"email",step:0,req:1},
 {id:"ptype",label:"Project Type",type:"radio",step:0,req:1,options:["BTP","Additional Project","Honors"]},
-{id:"evalround",label:"Evaluation",type:"radio",step:0,options:["First","Second","Third","NA"]},
+{id:"evalround",label:"Evaluation",type:"radio",step:0,req:1,options:["First","Second","Third","NA"]},
 {id:"code",label:"Class access code",hint:"given by your instructor, leave blank if none",type:"text",step:0},
 {id:"title",label:"Name of The Project",type:"text",step:1,req:1},
 {id:"objectives",label:"Overall Objectives of The Project",type:"textarea",step:1,req:1,min:120},
@@ -63,7 +63,7 @@ try{Object.assign(state,JSON.parse(localStorage.getItem("draft")||"{}"),{seq:[]}
 const draft=()=>{try{localStorage.setItem("draft",JSON.stringify({step:state.step,vals:state.vals,self:state.self}))}catch(e){}};
 const total=s=>Math.round(CRIT.reduce((t,c)=>t+(+s[c.k]||0)/5*c.w,0));
 async function api(body){if(API.startsWith("PASTE"))throw new Error("Backend URL not set in index.html");
- let err;for(let i=0;i<4;i++){try{const r=await fetch(API,{method:"POST",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify(body)});return await r.json()}catch(e){err=e;await new Promise(z=>setTimeout(z,1500*(i+1)+Math.random()*2000))}}throw err}
+ let err;for(let i=0;i<4;i++){try{const r=await fetch(API,{method:"POST",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify(body)});return await r.json()}catch(e){err=e;await new Promise(z=>setTimeout(z,1500*(i+1)+Math.random()*2000))}}throw new Error("Could not reach the backend ("+(err&&err.message||err)+"). Check that it is deployed for Anyone and the URL ends with /exec.")}
 function route(){const h=location.hash.slice(1)||"submit";
  document.querySelectorAll("nav a").forEach(a=>a.classList.toggle("on",a.getAttribute("href")==="#"+h));
  (h==="evaluate"?viewEval:viewSubmit)()}
@@ -77,7 +77,7 @@ function fieldHtml(f){const v=state.vals[f.id]||"";let i;
  else i=`<input data-f="${f.id}" type="${f.type}" value="${esc(v)}"${f.type==="url"?' placeholder="https://"':""}>`;
  return `<label>${f.label}${f.req?" *":""} ${f.hint?`<span class="hint">${f.hint}</span>`:""}</label>${i}`}
 function lastStep(){return `<div class="card" style="background:var(--bg)"><b>Presentation template</b>
-<p class="note"><a href="${esc(TEMPLATE_URL)}" target="_blank" rel="noopener" download>Open the template</a>. Your slides and video must follow this order. Tick each section once it is in your video:</p>
+<p class="note"><a href="${esc(TEMPLATE_URL)}" target="_blank" rel="noopener">Open the template</a> (then File &gt; Make a copy). Your slides and video must follow this order. Tick each section once it is in your video:</p>
 ${SEQN.map((t,i)=>`<label style="font-weight:400;margin:4px 0"><input type="checkbox" style="width:auto" data-q="${i}"${state.seq[i]?" checked":""}> ${i+1}. ${t}</label>`).join("")}</div>
 ${FIELDS.filter(f=>f.step===3).map(fieldHtml).join("")}
 <label><input type="checkbox" id="share" style="width:auto"> I have set both links to "Anyone with the link can view" *</label>
